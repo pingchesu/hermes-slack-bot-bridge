@@ -2,19 +2,16 @@
 
 Next steps:
 
-1. Ensure Slack adapter config allows relay bot messages only when Hermes is mentioned:
+1. Ensure Slack adapter accepts relay bot messages when Hermes is mentioned:
 
 ```yaml
-platforms:
-  slack:
-    extra:
-      allow_bots: mentions
-      strict_mention: true
-      allowed_channels:
-        - <bridge-channel-id>
-        - <optional-second-bridge-channel-id>
+slack:
+  allow_bots: mentions
+  strict_mention: true
 ```
 
-2. Add the relay bot Slack user id to `SLACK_ALLOWED_USERS` in `~/.hermes/.env`.
+Do **not** set `slack.allowed_channels` to only the bridge channel if this Hermes bot already serves other Slack channels. `allowed_channels` is a global Slack-adapter allowlist and would block Hermes in every channel not listed. Use `HERMES_SLACK_BRIDGE_CHANNEL` to limit bridge ingress instead.
+
+2. Add the relay bot Slack user id to `SLACK_ALLOWED_USERS` in `~/.hermes/.env`, if user authorization is enabled.
 3. For production, set `HERMES_SLACK_BRIDGE_ALLOWED_BOT_IDS` or `HERMES_SLACK_BRIDGE_ALLOWED_APP_IDS`, plus `HERMES_SLACK_BRIDGE_HMAC_SECRET`.
 4. Restart the gateway: `hermes gateway restart`.

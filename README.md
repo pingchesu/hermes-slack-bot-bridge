@@ -20,23 +20,19 @@ This installs into `~/.hermes/plugins/slack-bot-bridge/`, not into the `hermes-a
 
 ## Configure
 
-### 1. Lock the Slack adapter to the bridge channel
+### 1. Configure Slack adapter bot handling
 
-In `~/.hermes/config.yaml`:
+In `~/.hermes/config.yaml`, let relay bot messages through only when they mention Hermes:
 
 ```yaml
-platforms:
-  slack:
-    extra:
-      allow_bots: mentions      # let bot/webhook messages through
-      strict_mention: true      # but only when they @ Hermes
-      allowed_channels:
-        - C0123456789           # bridge channel ID
-        - C9876543210           # optional second bridge channel
+slack:
+  allow_bots: mentions
+  strict_mention: true
 ```
 
-Without `allow_bots: mentions` the Slack adapter drops bot messages before
-the plugin ever sees them.
+Without `allow_bots: mentions` (or an equivalent existing setting), the Slack adapter drops bot messages before the plugin ever sees them.
+
+Do **not** set `slack.allowed_channels` to only the bridge channel if this Hermes bot already serves other Slack channels. `allowed_channels` is a global Slack-adapter allowlist and would block Hermes in every channel not listed. Use `HERMES_SLACK_BRIDGE_CHANNEL` to limit bridge ingress instead.
 
 ### 2. Allow the relay bot's Slack user id
 
