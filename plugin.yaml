@@ -1,0 +1,22 @@
+manifest_version: 1
+name: slack-bot-bridge
+version: "0.1.0"
+description: "Bot-to-bot ingress over Slack. Lets an external bot (CI runner, webhook relay) hand off a canonical prompt to a Hermes that lives inside a private network, by posting a tagged JSON envelope into a single dedicated bridge channel."
+author: pingchesu
+hooks:
+  - pre_gateway_dispatch
+requires_env:
+  - name: HERMES_SLACK_BRIDGE_CHANNEL
+    description: "Slack channel ID dedicated to bridge ingress (for example C0123456789). Plugin is inert without this."
+optional_env:
+  - name: HERMES_SLACK_BRIDGE_ALLOWED_BOT_IDS
+    description: "Comma-separated Slack bot_id allowlist. Recommended for production."
+  - name: HERMES_SLACK_BRIDGE_ALLOWED_APP_IDS
+    description: "Comma-separated Slack app_id/api_app_id allowlist. Recommended for production."
+  - name: HERMES_SLACK_BRIDGE_ALLOWED_TEAMS
+    description: "Comma-separated Slack workspace/team allowlist."
+  - name: HERMES_SLACK_BRIDGE_HMAC_SECRET
+    description: "Optional shared HMAC secret. Strongly recommended for production."
+    secret: true
+  - name: HERMES_SLACK_BRIDGE_DEDUP_TTL_SECONDS
+    description: "Request-id dedup retention seconds. Default 86400; 0 means never expire entries."
