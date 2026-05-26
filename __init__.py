@@ -1,7 +1,7 @@
 """slack-bot-bridge — bot-to-bot ingress for private-network Hermes.
 
-The plugin watches a single Slack channel that operators have nominated as
-the "bridge" channel. When an external bot posts a tagged JSON envelope into
+The plugin watches one or more Slack channels that operators have nominated as
+the "bridge" channel(s). When an external bot posts a tagged JSON envelope into
 that channel and mentions Hermes, the plugin rewrites the message into a
 canonical prompt so the regular Hermes dispatch path picks it up. Hermes
 never has to be reachable from the public internet — Slack is the relay.
@@ -27,8 +27,8 @@ envelope are mandatory.
 Configuration (env vars; all optional unless noted):
 
 * ``HERMES_SLACK_BRIDGE_CHANNEL`` (required)
-    Slack channel ID (``C0123…``) of the dedicated bridge channel. Messages
-    in any other channel are ignored. Operators must also restrict the
+    Comma-separated Slack channel ID(s) (``C0123…``) of dedicated bridge channels.
+    Messages in any other channel are ignored. Operators must also restrict the
     Slack adapter itself to this channel (``platforms.slack.extra.allowed_channels``).
 * ``HERMES_SLACK_BRIDGE_ALLOWED_BOT_IDS``
     Comma-separated allowlist of Slack ``bot_id`` values (``B0…``). Empty
@@ -431,10 +431,10 @@ def _verify_signature(secret: str, envelope: Dict[str, Any], request_id: str, ac
 
 
 def _slack_channel_allowed(channel_id: str) -> bool:
-    target = _env("HERMES_SLACK_BRIDGE_CHANNEL")
-    if not target:
-        return False  # Plugin is inert until the operator names a channel.
-    return channel_id == target
+    targets = _env_set("HERMES_SLACK_BRIDGE_CHANNEL")
+    if not targets:
+        return False  # Plugin is inert until the operator names at least one channel.
+    return channel_id in targets
 
 
 def _identifiers_allowed(raw_message: Dict[str, Any]) -> bool:

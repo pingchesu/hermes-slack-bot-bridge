@@ -12,6 +12,7 @@ platforms:
       strict_mention: true
       allowed_channels:
         - <bridge-channel-id>
+        - <optional-second-bridge-channel-id>
 ```
 
 2. Add the relay bot Slack user id to `SLACK_ALLOWED_USERS` in `~/.hermes/.env`.

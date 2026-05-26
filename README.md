@@ -2,7 +2,7 @@
 
 Bot-to-bot ingress for Hermes instances that live behind a firewall. An
 external bot — a GitHub Actions workflow, a webhook relay, a CI runner —
-posts a tagged JSON envelope into a single dedicated Slack channel, and
+posts a tagged JSON envelope into one or more dedicated Slack channels, and
 Hermes treats it as if a human had typed the prompt themselves.
 
 The plugin **does not** patch the Slack adapter or the gateway runner. It
@@ -31,7 +31,8 @@ platforms:
       allow_bots: mentions      # let bot/webhook messages through
       strict_mention: true      # but only when they @ Hermes
       allowed_channels:
-        - C0123456789           # the bridge channel ID — single channel
+        - C0123456789           # bridge channel ID
+        - C9876543210           # optional second bridge channel
 ```
 
 Without `allow_bots: mentions` the Slack adapter drops bot messages before
@@ -56,7 +57,7 @@ will then silently reject it as unauthorized.
 
 ```bash
 # ~/.hermes/.env
-HERMES_SLACK_BRIDGE_CHANNEL=C0123456789
+HERMES_SLACK_BRIDGE_CHANNEL=C0123456789,C9876543210
 HERMES_SLACK_BRIDGE_ALLOWED_BOT_IDS=B0AAAAAAA
 HERMES_SLACK_BRIDGE_ALLOWED_APP_IDS=A0BBBBBBB
 HERMES_SLACK_BRIDGE_ALLOWED_TEAMS=T0CCCCCCC
@@ -68,7 +69,7 @@ HERMES_SLACK_BRIDGE_HMAC_SECRET=use-a-real-secret-here
 HERMES_SLACK_BRIDGE_DEDUP_TTL_SECONDS=86400
 ```
 
-- `HERMES_SLACK_BRIDGE_CHANNEL` is **required** — the plugin is inert
+- `HERMES_SLACK_BRIDGE_CHANNEL` is **required** and accepts a comma-separated list — the plugin is inert
   without it.
 - Team allowlists are combined with sender identity allowlists: if
   `ALLOWED_TEAMS` is set, the event team must match; if either
@@ -173,10 +174,10 @@ jobs:
 - **Channel allowlist** is mandatory — the plugin is inert without
   `HERMES_SLACK_BRIDGE_CHANNEL`.
 - **Identifier allowlists** (bot/app/team) narrow the set of senders the
-  plugin will accept inside the bridge channel. Configure at least one app
+  plugin will accept inside the bridge channel(s). Configure at least one app
   or bot id for production; team allowlists are an additional scope gate.
 - **HMAC** (optional but strongly recommended for production) makes the
-  envelope tamper-evident; without it any member of the bridge channel could
+  envelope tamper-evident; without it any member of a bridge channel could
   craft a payload.
 - **No free-form text.** The plugin only accepts a structured envelope —
   arbitrary bot chatter in the bridge channel is ignored.

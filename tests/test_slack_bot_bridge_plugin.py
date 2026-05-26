@@ -336,6 +336,13 @@ class TestHookEndToEnd:
         event = _make_slack_event(text=_slack_envelope_text(envelope), channel="C_OTHER")
         assert plugin.on_pre_gateway_dispatch(event=event) is None
 
+    def test_accepts_comma_separated_bridge_channels(self, plugin, configure_bridge):
+        configure_bridge(channel=f"C_OTHER,{CHANNEL}")
+        envelope = {"request_id": "r-multi-channel", "prompt": "hi"}
+        event = _make_slack_event(text=_slack_envelope_text(envelope), channel=CHANNEL)
+        result = plugin.on_pre_gateway_dispatch(event=event)
+        assert result is not None and result["action"] == "rewrite"
+
     def test_inert_without_channel_env(self, plugin, monkeypatch):
         # No HERMES_SLACK_BRIDGE_CHANNEL set → plugin should be a no-op
         # even if everything else looks right.
