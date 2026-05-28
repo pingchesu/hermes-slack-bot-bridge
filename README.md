@@ -1,49 +1,51 @@
 # Hermes Slack Bot Bridge
 
-讓「另一個 Slack Bot」把任務丟給 Hermes。
+English | [繁體中文](README.zh-TW.md)
 
-常見用途：GitHub Actions、CI runner、webhook relay、內網外的自動化系統，不能直接打到 Hermes gateway，但可以在 Slack 頻道裡 `@Hermes` 丟一個固定格式的 JSON。這個 plugin 會驗證訊息、去重，然後把 JSON 裡的 `prompt` 轉成 Hermes 可以處理的訊息。
+Bot-to-bot ingress for Hermes over Slack.
 
-> 第一次安裝請直接看：[`docs/INSTALL.md`](docs/INSTALL.md)
+Use this when an external system — GitHub Actions, a CI runner, a webhook relay, or another Slack app — cannot call the Hermes gateway directly, but can post a structured message in Slack. The plugin validates that message, deduplicates it by `request_id`, and rewrites the JSON envelope into a normal Hermes prompt.
+
+> First-time setup: see [`docs/INSTALL.md`](docs/INSTALL.md) for the full operator guide.
 >
-> 裡面包含 Slack App 建立、Bot Token scopes、如何拿 Slack bot `user_id`、Hermes `.env` / `config.yaml` 要填什麼、以及測試指令。
+> The guide covers Slack App creation, bot token scopes, how to get Slack bot `user_id`, and the exact Hermes `.env` / `config.yaml` settings.
 
-## 它解決什麼問題？
+## What problem does this solve?
 
-Hermes 在 Slack 裡通常只接受真人訊息。這個 plugin 讓「被允許的 bot」也能在指定 bridge channel 裡觸發 Hermes，但不需要改 Hermes core，也不需要讓 Hermes 暴露在 public internet。
+Hermes normally treats Slack bot messages differently from human messages. This plugin lets a known relay bot wake Hermes in a dedicated bridge channel without patching Hermes core and without exposing Hermes to the public internet.
 
-流程：
+Flow:
 
 ```text
-外部系統 / CI / webhook relay
+External system / CI / webhook relay
   -> Slack chat.postMessage
   -> #hermes-bridge channel
   -> @Hermes hermes-bridge + JSON envelope
-  -> slack-bot-bridge plugin 驗證 / 去重 / rewrite
-  -> Hermes 正常 dispatch
+  -> slack-bot-bridge validates / deduplicates / rewrites
+  -> normal Hermes dispatch
 ```
 
-## 最短安裝流程
+## Quick setup
 
-先照 [`docs/INSTALL.md`](docs/INSTALL.md) 拿到這些 Slack ID：
+First collect these Slack IDs. The full lookup steps are in [`docs/INSTALL.md`](docs/INSTALL.md).
 
-| 你要拿的值 | 長相 | 用在哪裡 |
+| Value | Shape | Where it is used |
 | --- | --- | --- |
 | Bridge channel ID | `C...` | `HERMES_SLACK_BRIDGE_CHANNEL` |
-| Hermes bot user ID | `U...` | Slack 訊息裡 `<@U...>` mention Hermes |
-| Relay bot user ID | `U...` | `SLACK_ALLOWED_USERS`，讓 Hermes authorization 放行這個 bot |
+| Hermes bot user ID | `U...` | `<@U...>` mention in the Slack message |
+| Relay bot user ID | `U...` | `SLACK_ALLOWED_USERS`, so Hermes authorization accepts the relay bot |
 | Relay bot ID | `B...` | `HERMES_SLACK_BRIDGE_ALLOWED_BOT_IDS` |
 | Relay app ID | `A...` | `HERMES_SLACK_BRIDGE_ALLOWED_APP_IDS` |
 | Workspace / team ID | `T...` | `HERMES_SLACK_BRIDGE_ALLOWED_TEAMS` |
 
-安裝 plugin：
+Install the plugin:
 
 ```bash
 HERMES_SLACK_BRIDGE_CHANNEL=C0123456789 \
   hermes plugins install pingchesu/hermes-slack-bot-bridge --enable
 ```
 
-更新 Hermes config，讓 Slack adapter 接受「有 mention Hermes 的 bot message」：
+Configure the Hermes Slack adapter to accept bot messages only when Hermes is mentioned:
 
 ```yaml
 # ~/.hermes/config.yaml
@@ -52,11 +54,11 @@ slack:
   strict_mention: true
 ```
 
-更新 Hermes env：
+Configure Hermes environment variables:
 
 ```bash
 # ~/.hermes/.env
-# 原本有誰就保留，後面加上 relay bot 的 U... user_id
+# Keep existing human users, then add the relay bot's U... user_id.
 SLACK_ALLOWED_USERS=U_YOUR_USER,U_RELAY_BOT_USER
 
 HERMES_SLACK_BRIDGE_CHANNEL=C0123456789
@@ -66,15 +68,15 @@ HERMES_SLACK_BRIDGE_ALLOWED_TEAMS=T0CCCCCCC
 HERMES_SLACK_BRIDGE_HMAC_SECRET=replace-with-a-long-random-secret
 ```
 
-重啟 Hermes gateway：
+Restart the Hermes gateway:
 
 ```bash
 hermes gateway restart
 ```
 
-## Slack 訊息格式
+## Slack message format
 
-Relay bot 要送這種訊息到 bridge channel：
+The relay bot posts a message like this to the bridge channel:
 
 ````text
 <@U_HERMES_BOT> hermes-bridge
@@ -89,23 +91,45 @@ Relay bot 要送這種訊息到 bridge channel：
 ```
 ````
 
-重點：
+Important details:
 
-- `<@U_HERMES_BOT>` 要用 Hermes bot 的 **Slack user ID** (`U...`)，不是 bot ID (`B...`)。
-- `hermes-bridge` 是固定 marker。
-- JSON 建議放在 fenced code block：<code>```json</code>。
-- `request_id` 用來去重；同一個 request 在 dedup TTL 內不會重複觸發。
-- 如果設定 `HERMES_SLACK_BRIDGE_HMAC_SECRET`，每個 envelope 都必須帶正確 `signature`。
+- `<@U_HERMES_BOT>` must use the Hermes bot's Slack **user ID** (`U...`), not its bot ID (`B...`).
+- `hermes-bridge` is the required marker token.
+- Put the JSON envelope in a fenced <code>```json</code> block.
+- `request_id` is used for deduplication; repeated IDs are ignored inside the dedup TTL.
+- If `HERMES_SLACK_BRIDGE_HMAC_SECRET` is set, every envelope must include a valid `signature`.
 
-## 完整文件
+## Getting Slack bot user IDs
 
-- [`docs/INSTALL.md`](docs/INSTALL.md) — 從零開始安裝，包含 Slack bot user ID 取得方式。
-- [`after-install.md`](after-install.md) — `hermes plugins install` 後顯示的快速提醒。
+The most reliable method is Slack `auth.test` with the relevant bot token:
 
-## 安全模型
+```bash
+curl -sS -H "Authorization: Bearer <relay-bot-token>" \
+  https://slack.com/api/auth.test | jq .
+```
 
-- **Bridge channel allowlist 是必要條件**：沒有 `HERMES_SLACK_BRIDGE_CHANNEL` 時 plugin 不會處理任何訊息。
-- **Sender allowlist 建議正式環境必填**：用 relay bot 的 `bot_id` 或 `app_id` 限制來源。
-- **HMAC 建議正式環境必開**：避免同一 channel 裡其他成員手刻 JSON 觸發 Hermes。
-- **Hermes 原本的 Slack authorization 還會跑**：relay bot 的 `user_id` (`U...`) 必須在 `SLACK_ALLOWED_USERS` 裡，否則 plugin rewrite 後仍會被 Hermes gateway 擋掉。
-- **不接受 free-form bot text**：必須有 mention、`hermes-bridge` marker、JSON envelope。
+The response includes:
+
+```json
+{
+  "team_id": "T0123456789",
+  "user_id": "U0123456789",
+  "bot_id": "B0123456789"
+}
+```
+
+Use `user_id` (`U...`) for `SLACK_ALLOWED_USERS` and Slack mentions. Use `bot_id` (`B...`) for `HERMES_SLACK_BRIDGE_ALLOWED_BOT_IDS`.
+
+## More documentation
+
+- [`README.zh-TW.md`](README.zh-TW.md) — Traditional Chinese README.
+- [`docs/INSTALL.md`](docs/INSTALL.md) — Full installation guide, including Slack ID lookup, smoke tests, and a GitHub Actions relay example.
+- [`after-install.md`](after-install.md) — Short checklist shown after `hermes plugins install`.
+
+## Security model
+
+- **Bridge channel allowlist is mandatory.** Without `HERMES_SLACK_BRIDGE_CHANNEL`, the plugin ignores every message.
+- **Sender allowlists are recommended for production.** Restrict accepted senders with the relay bot `bot_id` or app `app_id`.
+- **HMAC is strongly recommended for production.** Without HMAC, another member of the bridge channel could hand-write a JSON envelope.
+- **Hermes Slack authorization still runs.** The relay bot's `user_id` (`U...`) must be in `SLACK_ALLOWED_USERS`, otherwise the gateway can reject the rewritten prompt.
+- **Free-form bot text is ignored.** The plugin requires a mention, the `hermes-bridge` marker, and a JSON envelope.
